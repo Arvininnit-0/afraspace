@@ -48,29 +48,6 @@ paperVideo.addEventListener("ended", () => {
     }, WELCOME_DURATION_MS);
 });
 
-// برای تست سریع: روی دکمه‌ی "رد کردن اینترو" کلیک کن
-// هر لحظه از اینترو که باشی، مستقیم میره رو صفحه‌ی اصلی
-// نکته: این فقط تا قبل از انیمیشن حروف میره، انیمیشن حروف و مراحل بعدش رو صدا نمی‌زنه
-window.skipToMain = function () {
-    stopLeafSpawn(true);
-    stopLolSpawn();
-    document.querySelectorAll(".leaf-fill").forEach((el) => el.remove());
-    trackingEnabled = false;
-    sequenceStarted = true;
-
-    paperVideo.pause();
-    paperVideo.classList.add("hidden");
-    introScreen.classList.add("hidden");
-    mainScreen.classList.remove("hidden");
-    mainScreen.classList.add("show");
-    // عمداً revealLetters() اینجا صدا زده نمی‌شه
-};
-
-const skipBtn = document.getElementById("skipIntroBtn");
-if (skipBtn) {
-    skipBtn.addEventListener("click", window.skipToMain);
-}
-
 const startBtn = document.getElementById("startBtn");
 if (startBtn) {
     startBtn.addEventListener("click", () => {
