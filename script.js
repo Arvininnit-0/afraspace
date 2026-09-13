@@ -48,6 +48,29 @@ paperVideo.addEventListener("ended", () => {
     }, WELCOME_DURATION_MS);
 });
 
+// برای تست سریع: روی دکمه‌ی "رد کردن اینترو" کلیک کن
+// هر لحظه از اینترو که باشی، مستقیم میره رو صفحه‌ی اصلی
+// نکته: این فقط تا قبل از انیمیشن حروف میره، انیمیشن حروف و مراحل بعدش رو صدا نمی‌زنه
+window.skipToMain = function () {
+    stopLeafSpawn(true);
+    stopLolSpawn();
+    document.querySelectorAll(".leaf-fill").forEach((el) => el.remove());
+    trackingEnabled = false;
+    sequenceStarted = true;
+
+    paperVideo.pause();
+    paperVideo.classList.add("hidden");
+    introScreen.classList.add("hidden");
+    mainScreen.classList.remove("hidden");
+    mainScreen.classList.add("show");
+    // عمداً revealLetters() اینجا صدا زده نمی‌شه
+};
+
+const skipBtn = document.getElementById("skipIntroBtn");
+if (skipBtn) {
+    skipBtn.addEventListener("click", window.skipToMain);
+}
+
 const startBtn = document.getElementById("startBtn");
 if (startBtn) {
     startBtn.addEventListener("click", () => {
@@ -205,6 +228,8 @@ function spawnFallingItem(assetList, durationSec) {
 }
 
 // مرحله‌ی نهایی: گرید متراکم و هم‌پوشان که کل صفحه رو بدون جای خالی می‌پوشونه
+// (بهینه‌شده: به‌جای هزاران setTimeout/rAF جدا، همه‌ی المان‌ها یکجا اضافه می‌شن
+// و زمان‌بندی ورودشون با CSS animation-delay انجام می‌شه تا مرورگر هنگ نکنه)
 function runFinalStage() {
     stopLolSpawn();
     speedUpExisting(0.45); // هرچی روی صفحه‌ست (برگ یا LOL) سریع می‌ریزه پایین، نه حذف ناگهانی
@@ -215,7 +240,6 @@ function runFinalStage() {
     const cols = Math.ceil(window.innerWidth / tileSize) + 2;
     const rows = Math.ceil(window.innerHeight / tileSize) + 2;
 
-    let index = 0;
     const cells = [];
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -229,30 +253,32 @@ function runFinalStage() {
     }
 
     const spawnedLeaves = [];
+    const fragment = document.createDocumentFragment();
 
-    cells.forEach(({ r, c }) => {
-        const delay = index * 2; // میلی‌ثانیه، خیلی سریع پر می‌شه
-        setTimeout(() => {
-            // هر خونه دو تا برگ همپوشان می‌گیره تا حتی با فرم نامنظم برگ‌ها هم جای خالی نمونه
-            for (let k = 0; k < 2; k++) {
-                const el = document.createElement("div");
-                el.className = "leaf-fill";
-                const asset = LEAF_ASSETS[Math.floor(Math.random() * LEAF_ASSETS.length)];
-                // سایز خیلی بزرگ‌تر از خونه‌ی گرید تا هم‌پوشانی شدید بشه
-                const size = tileSize * (2.1 + Math.random() * 0.6);
-                el.style.backgroundImage = `url(${asset})`;
-                el.style.width = size + "px";
-                el.style.height = size + "px";
-                el.style.left = (c * tileSize - tileSize / 2 + (Math.random() * 12 - 6)) + "px";
-                el.style.top = (r * tileSize - tileSize / 2 + (Math.random() * 12 - 6)) + "px";
-                el.style.setProperty("--rot", (Math.random() * 60 - 30) + "deg");
-                leafContainer.appendChild(el);
-                spawnedLeaves.push(el);
-                requestAnimationFrame(() => el.classList.add("show"));
-            }
-        }, delay);
-        index++;
+    cells.forEach(({ r, c }, index) => {
+        const delayMs = index * 2; // همون سرعت پلکانیِ قبلی، ولی این‌بار با CSS انجام می‌شه
+
+        // هر خونه دو تا برگ همپوشان می‌گیره تا حتی با فرم نامنظم برگ‌ها هم جای خالی نمونه
+        for (let k = 0; k < 2; k++) {
+            const el = document.createElement("div");
+            el.className = "leaf-fill";
+            const asset = LEAF_ASSETS[Math.floor(Math.random() * LEAF_ASSETS.length)];
+            const size = tileSize * (2.1 + Math.random() * 0.6);
+            el.style.backgroundImage = `url(${asset})`;
+            el.style.width = size + "px";
+            el.style.height = size + "px";
+            el.style.left = (c * tileSize - tileSize / 2 + (Math.random() * 12 - 6)) + "px";
+            el.style.top = (r * tileSize - tileSize / 2 + (Math.random() * 12 - 6)) + "px";
+            el.style.setProperty("--rot", (Math.random() * 60 - 30) + "deg");
+            el.style.animation = "leafGridIn .3s ease forwards";
+            el.style.animationDelay = delayMs + "ms";
+            fragment.appendChild(el);
+            spawnedLeaves.push(el);
+        }
     });
+
+    // یه‌بار اضافه کردن کل گرید (یه reflow واحد، نه هزاران تا)
+    leafContainer.appendChild(fragment);
 
     const fillDuration = cells.length * 2 + 500;
 
@@ -266,6 +292,7 @@ function runFinalStage() {
 }
 
 // محو کردن پلکانی برگ‌ها به ترتیب تصادفی، دقیقاً برعکس روندی که ظاهر شدن
+// (بهینه‌شده: انیمیشن با CSS، حذف نهایی از DOM با رویداد animationend به‌جای تایمر)
 function fadeOutLeaves(elements) {
     // یک ثانیه بعد از شروعِ محو شدن برگ‌ها، صدا و انیمیشن حروف/space هماهنگ باهاش شروع می‌شن
     setTimeout(() => {
@@ -279,11 +306,10 @@ function fadeOutLeaves(elements) {
     }
 
     order.forEach((el, i) => {
-        const delay = i * 2; // همون سرعت پلکانیِ ظاهر شدن
-        setTimeout(() => {
-            el.classList.remove("show");
-            setTimeout(() => el.remove(), 300); // بعد از اتمام ترنزیشن از DOM حذف بشه
-        }, delay);
+        const delayMs = i * 2; // همون سرعت پلکانیِ ظاهر شدن
+        el.style.animation = "leafGridOut .3s ease forwards";
+        el.style.animationDelay = delayMs + "ms";
+        el.addEventListener("animationend", () => el.remove(), { once: true });
     });
 
     const fadeDuration = order.length * 2 + 400;
