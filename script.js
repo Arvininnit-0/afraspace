@@ -227,74 +227,81 @@ function spawnFallingItem(assetList, durationSec) {
     el.addEventListener("animationend", () => el.remove());
 }
 
-// مرحله‌ی نهایی: گرید متراکم و هم‌پوشان که کل صفحه رو بدون جای خالی می‌پوشونه
-// (بهینه‌شده: به‌جای هزاران setTimeout/rAF جدا، همه‌ی المان‌ها یکجا اضافه می‌شن
-// و زمان‌بندی ورودشون با CSS animation-delay انجام می‌شه تا مرورگر هنگ نکنه)
 function runFinalStage() {
     stopLolSpawn();
-    speedUpExisting(0.45); // هرچی روی صفحه‌ست (برگ یا LOL) سریع می‌ریزه پایین، نه حذف ناگهانی
+    speedUpExisting(0.45);
     introText.textContent = "";
     document.getElementById("lolIcon").classList.add("hidden");
 
-    const tileSize = 40; // ریزتر شد = تراکم بیشتر
-    const cols = Math.ceil(window.innerWidth / tileSize) + 2;
-    const rows = Math.ceil(window.innerHeight / tileSize) + 2;
+    const tileSize = 55;
+
+    const cols = Math.ceil(window.innerWidth / tileSize) + 3;
+    const rows = Math.ceil(window.innerHeight / tileSize) + 3;
 
     const cells = [];
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
+    for (let r = -1; r < rows; r++) {
+        for (let c = -1; c < cols; c++) {
             cells.push({ r, c });
         }
     }
-    // به‌هم‌ریختن ترتیب پر شدن خونه‌ها برای جلوه‌ی طبیعی‌تر
     for (let i = cells.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [cells[i], cells[j]] = [cells[j], cells[i]];
     }
 
+    const STAGGER_MS_IN = 3;
+    const CHUNK_SIZE = 100;
     const spawnedLeaves = [];
-    const fragment = document.createDocumentFragment();
+    let cellIndex = 0;
 
-    cells.forEach(({ r, c }, index) => {
-        const delayMs = index * 2; // همون سرعت پلکانیِ قبلی، ولی این‌بار با CSS انجام می‌شه
+    function buildChunk() {
+        const fragment = document.createDocumentFragment();
+        const end = Math.min(cellIndex + CHUNK_SIZE, cells.length);
 
-        // هر خونه دو تا برگ همپوشان می‌گیره تا حتی با فرم نامنظم برگ‌ها هم جای خالی نمونه
-        for (let k = 0; k < 2; k++) {
+        for (; cellIndex < end; cellIndex++) {
+            const { r, c } = cells[cellIndex];
             const el = document.createElement("div");
             el.className = "leaf-fill";
             const asset = LEAF_ASSETS[Math.floor(Math.random() * LEAF_ASSETS.length)];
-            const size = tileSize * (2.1 + Math.random() * 0.6);
+            const rowOffset = (r % 2 !== 0) ? tileSize / 2 : 0;
+            const size = tileSize * (3.4 + Math.random() * 0.5);
+
             el.style.backgroundImage = `url(${asset})`;
             el.style.width = size + "px";
             el.style.height = size + "px";
-            el.style.left = (c * tileSize - tileSize / 2 + (Math.random() * 12 - 6)) + "px";
-            el.style.top = (r * tileSize - tileSize / 2 + (Math.random() * 12 - 6)) + "px";
+            el.style.left = (c * tileSize - size / 2 + tileSize / 2 + rowOffset + (Math.random() * 6 - 3)) + "px";
+            el.style.top = (r * tileSize - size / 2 + tileSize / 2 + (Math.random() * 6 - 3)) + "px";
             el.style.setProperty("--rot", (Math.random() * 60 - 30) + "deg");
-            el.style.animation = "leafGridIn .3s ease forwards";
-            el.style.animationDelay = delayMs + "ms";
+            el.style.transitionDelay = (cellIndex * STAGGER_MS_IN) + "ms";
+            el.style.willChange = "opacity, transform"; // اینجا، همون لحظه‌ی ساخت، نه بعداً یه‌جا
+
             fragment.appendChild(el);
             spawnedLeaves.push(el);
         }
-    });
 
-    // یه‌بار اضافه کردن کل گرید (یه reflow واحد، نه هزاران تا)
-    leafContainer.appendChild(fragment);
+        leafContainer.appendChild(fragment);
 
-    const fillDuration = cells.length * 2 + 500;
+        if (cellIndex < cells.length) {
+            requestAnimationFrame(buildChunk);
+        } else {
+            // دیگه نیازی به فوروچ جدا برای will-change نیست، چون بالا انجام شد
+            requestAnimationFrame(() => {
+                spawnedLeaves.forEach((el) => el.classList.add("show"));
+            });
 
-    // بعد از پر شدن کامل صفحه: همینجا بک‌گراند جدید پشت برگ‌ها فعال می‌شه
-    // (چون صفحه کاملاً پوشیده‌ست، دیده نمی‌شه) و بعد محو شدن تدریجی شروع می‌شه
-    setTimeout(() => {
-        mainScreen.classList.remove("hidden");
-        requestAnimationFrame(() => mainScreen.classList.add("show"));
-        fadeOutLeaves(spawnedLeaves);
-    }, fillDuration + 400);
+            const fillDuration = cells.length * STAGGER_MS_IN + 700;
+            setTimeout(() => {
+                mainScreen.classList.remove("hidden");
+                requestAnimationFrame(() => mainScreen.classList.add("show"));
+                fadeOutLeaves(spawnedLeaves);
+            }, fillDuration + 400);
+        }
+    }
+
+    buildChunk();
 }
 
-// محو کردن پلکانی برگ‌ها به ترتیب تصادفی، دقیقاً برعکس روندی که ظاهر شدن
-// (بهینه‌شده: انیمیشن با CSS، حذف نهایی از DOM با رویداد animationend به‌جای تایمر)
 function fadeOutLeaves(elements) {
-    // یک ثانیه بعد از شروعِ محو شدن برگ‌ها، صدا و انیمیشن حروف/space هماهنگ باهاش شروع می‌شن
     setTimeout(() => {
         startMainAudioSequence();
     }, 1000);
@@ -305,14 +312,25 @@ function fadeOutLeaves(elements) {
         [order[i], order[j]] = [order[j], order[i]];
     }
 
+    const STAGGER_MS_OUT = 6; // از 2 به 6 → پخش‌شدگی بیشتر بین محو شدن‌ها
     order.forEach((el, i) => {
-        const delayMs = i * 2; // همون سرعت پلکانیِ ظاهر شدن
-        el.style.animation = "leafGridOut .3s ease forwards";
-        el.style.animationDelay = delayMs + "ms";
-        el.addEventListener("animationend", () => el.remove(), { once: true });
+        el.style.transitionDelay = (i * STAGGER_MS_OUT) + "ms";
     });
 
-    const fadeDuration = order.length * 2 + 400;
+    requestAnimationFrame(() => {
+        order.forEach((el) => el.classList.remove("show"));
+    });
+
+    order.forEach((el) => {
+        el.addEventListener("transitionend", function handler() {
+            el.removeEventListener("transitionend", handler);
+            el.style.willChange = "auto";
+            el.remove();
+        });
+    });
+
+    
+    const fadeDuration = order.length * STAGGER_MS_OUT + 700;
     setTimeout(goToMain, fadeDuration);
 }
 
