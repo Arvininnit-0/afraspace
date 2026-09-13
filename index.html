@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afra Website</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lalezar&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <button id="skipIntroBtn">رد کردن اینترو</button>
+    
+
+    <video id="paper-video" autoplay muted playsinline>
+        <source src="videos/paper-opening.webm" type="video/webm">
+    </video>
+
+    <audio id="mainAudio" src="audio/sample.mp3" preload="auto"></audio>
+
+    <div id="impact-flash"></div>
+
+    <section id="intro-screen">
+
+        <div id="leaf-container"></div>
+
+        <div class="intro-content">
+
+    <img id="titleImage" src="assets/setimage.png" alt="Afra">
+
+    <div class="text-row">
+    <img id="lolIcon" src="assets/LOL.png" alt="LOL" class="hidden">
+    <img id="yavashImage" src="assets/YAVASH.png" alt="Yavash" class="hidden">
+    <div class="text-slot">
+        <p id="introText">موست رو تکون بده</p>
+        <button id="startBtn" class="start-btn">بریم</button>
+    </div>
+</div>
+
+        </div>
+
+    </section>
+
+
+    <section id="main-screen" class="hidden">
+
+        <div id="star-container"></div>
+
+        <div class="main-content">
+            <div id="letters-row">
+                <video id="letterA1" class="letter from-left" src="animations/a.webm" muted playsinline loop></video>
+                <video id="letterF" class="letter from-top" src="animations/f.webm" muted playsinline loop></video>
+                <video id="letterR" class="letter from-top" src="animations/r.webm" muted playsinline loop></video>
+                <video id="letterA2" class="letter from-right" src="animations/a2.webm" muted playsinline loop></video>
+            </div>
+
+            <img id="spaceVideo" class="space-video hidden" src="assets/space.png" alt="Space">
+            <p class="soul-text">Let Art Define Your Soul</p>
+        </div>
+
+    </section>
+
+
+    <script src="script.js"></script>
+
+</body>
+</html>
