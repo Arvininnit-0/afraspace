@@ -58,6 +58,11 @@ window.skipToMain = function () {
     trackingEnabled = false;
     sequenceStarted = true;
 
+    if (introLoopId) {
+        clearInterval(introLoopId);
+        introLoopId = null;
+    }
+
     paperVideo.pause();
     paperVideo.classList.add("hidden");
     introScreen.classList.add("hidden");
@@ -84,45 +89,102 @@ if (startBtn) {
     });
 }
 
-// بدون هیچ آستانه‌ی زمانی: همین که موس تکون بخوره، اتفاق میفته
-document.addEventListener("mousemove", () => {
+/* ---------------------------------------------------
+   منطق حرکت‌محور موس: پیشرفت درصدی (0 تا 100) که فقط
+   با حرکت مداوم و پیوسته بالا می‌ره، نه با یه تکون آنی
+--------------------------------------------------- */
+
+let mouseSpeed = 0;         // سرعت لحظه‌ای صاف‌شده‌ی موس (بعد از clamp)
+let progress = 0;           // درصد پیشرفت، بین 0 تا 100
+let lastMouseX = null, lastMouseY = null, lastMoveTime = null;
+let currentStage = 0;       // 0: شروع نشده، 2: متن سریع‌تر، 3: مرحله‌ی LOL، 4: یواش
+let introLoopId = null;
+
+// سقف سرعت: هر تکونی سریع‌تر از این باشه، همینقدر حساب می‌شه (نه بیشتر)
+const SPEED_CAP = 2.2;          // پیکسل بر میلی‌ثانیه
+const SPEED_SMOOTHING = 0.5;    // چقدر سرعت جدید با قدیم میکس بشه (0 تا 1)
+const SPEED_DECAY = 0.8;        // هر تیک، سرعت ثبت‌شده چقدر افت کنه اگه موس تکون نخوره
+
+// حداکثر درصدی که حتی با بیشترین سرعت ممکن، در هر تیک (100ms) اضافه می‌شه
+// یعنی برای پر شدن کامل (100%) با سرعت ثابت و پیوسته، حداقل باید:
+// 100 / PROGRESS_PER_TICK_MAX تیک بگذره = (100/1.4)*100ms ≈ 7.1 ثانیه حرکت مداوم
+const PROGRESS_PER_TICK_MAX = 1.4;
+
+// آستانه‌های درصدی برای هر مرحله (از 0 تا 100)
+const STAGE_2_PERCENT = 30;
+const STAGE_3_PERCENT = 65;
+const STAGE_4_PERCENT = 100;
+
+document.addEventListener("mousemove", (e) => {
     if (!trackingEnabled) return;
+
+    const now = performance.now();
+
+    if (lastMouseX !== null) {
+        const dx = e.clientX - lastMouseX;
+        const dy = e.clientY - lastMouseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dt = Math.max(now - lastMoveTime, 1);
+        let speed = dist / dt; // پیکسل بر میلی‌ثانیه
+
+        speed = Math.min(speed, SPEED_CAP); // سقف زدن، تا یه تکون تند بی‌نهایت بزرگ نشه
+
+        // صاف کردن (smoothing) به‌جای جمع خام، تا نوسان‌های لحظه‌ای اثر کمتری بذارن
+        mouseSpeed = mouseSpeed * (1 - SPEED_SMOOTHING) + speed * SPEED_SMOOTHING;
+    }
+
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    lastMoveTime = now;
 
     if (!sequenceStarted) {
         sequenceStarted = true;
-        runIntroSequence();
+        startIntroLoop();
     }
 });
 
-function runIntroSequence() {
-    // ریزش برگ با تراکم بالا (سرعت عادی)
-    startLeafSpawn(100, 3.2, 3);
+function startIntroLoop() {
+    startLeafSpawn(100, 3.2, 3); // ریزش برگ همون اول شروع می‌شه
 
-    setTimeout(() => {
+    introLoopId = setInterval(() => {
+        // اگه موس تکون نخوره، سرعت ثبت‌شده به‌سرعت افت می‌کنه و progress دیگه بالا نمی‌ره
+        mouseSpeed *= SPEED_DECAY;
+        if (mouseSpeed < 0.02) mouseSpeed = 0;
+
+        // نرمالایز بین 0 و 1، بعد ضرب در حداکثر مجاز هر تیک
+        const normalizedSpeed = mouseSpeed / SPEED_CAP; // بین 0 تا 1
+        progress += normalizedSpeed * PROGRESS_PER_TICK_MAX;
+        progress = Math.min(progress, 100);
+
+        updateStage();
+    }, 100);
+}
+
+function updateStage() {
+    if (currentStage < 2 && progress >= STAGE_2_PERCENT) {
+        currentStage = 2;
         introText.textContent = "سریع تر!!";
         introText.classList.add("fast");
-    }, 3000);
+        startLeafSpawn(60, 1.4, 3);
+    }
 
-    setTimeout(() => {
-        startLeafSpawn(60, 1.4, 3); // تراکم بیشتر و سریع‌تر
-    }, 5000);
-
-    setTimeout(() => {
-        // به‌جای حذف، برگ‌های روی صفحه رو سریع می‌ریزونیم پایین
+    if (currentStage < 3 && progress >= STAGE_3_PERCENT) {
+        currentStage = 3;
         stopLeafSpawn(false);
         speedUpExisting(0.45);
-
         introText.classList.remove("fast");
         introText.textContent = "یه موسم نمی‌تونی تکون بدی؟";
         document.getElementById("lolIcon").classList.remove("hidden");
         document.getElementById("titleImage").classList.add("hidden");
-        startLolSpawn(90, 2.4, 4); // تراکم خیلی بیشتر
+        startLolSpawn(90, 2.4, 4);
+    }
 
-        // یه فاصله‌ی حداقلی تا LOL حتماً چند لحظه دیده بشه، بعد میره سراغ مرحله‌ی YAVASH
-        setTimeout(() => {
-            runYavashSequence();
-        }, 3500);
-    }, 8000);
+    if (currentStage < 4 && progress >= STAGE_4_PERCENT) {
+        currentStage = 4;
+        clearInterval(introLoopId);
+        introLoopId = null;
+        runYavashSequence();
+    }
 }
 
 // تغییر متن با محو شدن نرم (fade out قدیمی، fade in جدید)
@@ -329,7 +391,6 @@ function fadeOutLeaves(elements) {
         });
     });
 
-    
     const fadeDuration = order.length * STAGGER_MS_OUT + 700;
     setTimeout(goToMain, fadeDuration);
 }
@@ -389,7 +450,16 @@ function playSpaceImpact() {
         spaceVideo.classList.add("sway");
 
         const soulText = document.querySelector(".soul-text");
-        if (soulText) soulText.classList.add("reveal");
+        if (soulText) {
+            soulText.classList.add("reveal");
+
+            // بعد از تموم شدن کامل انیمیشن متن، برو سراغ books و movieroll
+            soulText.addEventListener("animationend", function onSoulTextRevealed(e) {
+                if (e.animationName !== "fadeSlideIn") return; // فقط برای همین انیمیشن خاص
+                soulText.removeEventListener("animationend", onSoulTextRevealed);
+                playCornerItems();
+            });
+        }
     }, 1000);
 
     setTimeout(() => {
@@ -406,6 +476,41 @@ function playSpaceImpact() {
         startStarSpawn();
     }, 900);
 }
+
+function playCornerItems() {
+    const booksWrap = document.querySelector(".corner-wrap.corner-left");
+    const movieRollWrap = document.querySelector(".corner-wrap.corner-right");
+    const books = document.getElementById("booksVideo");
+    const movieRoll = document.getElementById("movieRollVideo");
+
+    [{ wrap: booksWrap, video: books }, { wrap: movieRollWrap, video: movieRoll }].forEach(({ wrap, video }) => {
+        if (!wrap || !video) return;
+        video.currentTime = 0;
+        video.play().catch(() => {});
+        wrap.classList.add("play");
+    });
+}
+
+function setupCornerHoverEffects() {
+    const pairs = [
+        { wrap: document.querySelector(".corner-wrap.corner-left"), video: document.getElementById("booksVideo") },
+        { wrap: document.querySelector(".corner-wrap.corner-right"), video: document.getElementById("movieRollVideo") }
+    ];
+
+    pairs.forEach(({ wrap, video }) => {
+        if (!wrap || !video) return;
+
+        wrap.addEventListener("mouseenter", () => {
+            video.pause();
+        });
+
+        wrap.addEventListener("mouseleave", () => {
+            video.play().catch(() => {});
+        });
+    });
+}
+
+setupCornerHoverEffects();
 
 function startStarSpawn() {
     stopStarSpawn();
