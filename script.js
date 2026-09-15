@@ -4,11 +4,42 @@ const mainScreen = document.getElementById("main-screen");
 const introText = document.getElementById("introText");
 const leafContainer = document.getElementById("leaf-container");
 const mainAudio = document.getElementById("mainAudio");
+const introAudio = document.getElementById("introAudio");
+const stopAudio = document.getElementById("STOPAudio");
+let introAudioEnded = false;
+
+introAudio.addEventListener("ended", () => {
+    introAudioEnded = true;
+});
 
 const AUDIO_FPS = 25;
 
 function tcToSeconds(h, m, s, f) {
     return h * 3600 + m * 60 + s + f / AUDIO_FPS;
+}
+
+function fadeOutAudio(audio,duration=1000){
+
+    const startVolume=audio.volume;
+    const step=50;
+    const decrease=startVolume/(duration/step);
+
+    const fade=setInterval(()=>{
+
+        audio.volume-=decrease;
+
+        if(audio.volume<=0){
+
+            audio.pause();
+            audio.currentTime=0;
+            audio.volume=startVolume;
+
+            clearInterval(fade);
+
+        }
+
+    },step);
+
 }
 
 const CUE_POINTS = [
@@ -32,25 +63,40 @@ let leafSpawnInterval = null;
 let lolSpawnInterval = null;
 let starSpawnInterval = null;
 
-const WELCOME_TEXT = "به افرا خوش اومدی!";
-const PROMPT_TEXT = "موس رو تکون بده!";
-const WELCOME_DURATION_MS = 2200; // کوتاه‌تر شد
+const WELCOME_TEXTS = [
+    "به افرا خوش اومدی!",
+    "اینجا دفترچه خاطرات افراست",
+    "چیزایی که دیدیم و خوندیم، اینجا جمع شده."
+];
+const PROMPT_TEXT = "حالا موست رو تکون بده!";
+const WELCOME_STEP_MS = 2600;
+
+const paperClickArea = document.getElementById("paperClickArea");
+
+paperClickArea.addEventListener("click", function onPaperClick() {
+    paperClickArea.removeEventListener("click", onPaperClick);
+    paperClickArea.style.pointerEvents = "none";
+    const hint = document.getElementById("clickHint");
+    if (hint) hint.remove();
+
+    paperVideo.play().catch(() => {});
+    introAudio.play().catch(() => {});
+});
 
 paperVideo.addEventListener("ended", () => {
     paperVideo.pause();
     introScreen.classList.add("show");
-    setTextFade(WELCOME_TEXT);
-    // در این مرحله موس هنوز غیرفعاله
+
+    WELCOME_TEXTS.forEach((text, i) => {
+        setTimeout(() => setTextFade(text), i * WELCOME_STEP_MS);
+    });
 
     setTimeout(() => {
         setTextFade(PROMPT_TEXT);
-        trackingEnabled = true; // از همینجا اولین حرکت موس، مرحله رو شروع می‌کنه
-    }, WELCOME_DURATION_MS);
+        trackingEnabled = true;
+    }, WELCOME_TEXTS.length * WELCOME_STEP_MS);
 });
 
-// برای تست سریع: روی دکمه‌ی "رد کردن اینترو" کلیک کن
-// هر لحظه از اینترو که باشی، مستقیم میره رو صفحه‌ی اصلی
-// نکته: این فقط تا قبل از انیمیشن حروف میره، انیمیشن حروف و مراحل بعدش رو صدا نمی‌زنه
 window.skipToMain = function () {
     stopLeafSpawn(true);
     stopLolSpawn();
@@ -68,7 +114,6 @@ window.skipToMain = function () {
     introScreen.classList.add("hidden");
     mainScreen.classList.remove("hidden");
     mainScreen.classList.add("show");
-    // عمداً revealLetters() اینجا صدا زده نمی‌شه
 };
 
 const skipBtn = document.getElementById("skipIntroBtn");
@@ -76,41 +121,18 @@ if (skipBtn) {
     skipBtn.addEventListener("click", window.skipToMain);
 }
 
-const startBtn = document.getElementById("startBtn");
-if (startBtn) {
-    startBtn.addEventListener("click", () => {
-        if (mainAudio) {
-            mainAudio.play().then(() => {
-                mainAudio.pause();
-                mainAudio.currentTime = 0;
-            }).catch(() => {});
-        }
-        startBtn.classList.remove("show");
-    });
-}
-
-/* ---------------------------------------------------
-   منطق حرکت‌محور موس: پیشرفت درصدی (0 تا 100) که فقط
-   با حرکت مداوم و پیوسته بالا می‌ره، نه با یه تکون آنی
---------------------------------------------------- */
-
-let mouseSpeed = 0;         // سرعت لحظه‌ای صاف‌شده‌ی موس (بعد از clamp)
-let progress = 0;           // درصد پیشرفت، بین 0 تا 100
+let mouseSpeed = 0;
+let progress = 0;
 let lastMouseX = null, lastMouseY = null, lastMoveTime = null;
-let currentStage = 0;       // 0: شروع نشده، 2: متن سریع‌تر، 3: مرحله‌ی LOL، 4: یواش
+let currentStage = 0;
 let introLoopId = null;
 
-// سقف سرعت: هر تکونی سریع‌تر از این باشه، همینقدر حساب می‌شه (نه بیشتر)
-const SPEED_CAP = 2.2;          // پیکسل بر میلی‌ثانیه
-const SPEED_SMOOTHING = 0.5;    // چقدر سرعت جدید با قدیم میکس بشه (0 تا 1)
-const SPEED_DECAY = 0.8;        // هر تیک، سرعت ثبت‌شده چقدر افت کنه اگه موس تکون نخوره
+const SPEED_CAP = 2.2;
+const SPEED_SMOOTHING = 0.5;
+const SPEED_DECAY = 0.8;
 
-// حداکثر درصدی که حتی با بیشترین سرعت ممکن، در هر تیک (100ms) اضافه می‌شه
-// یعنی برای پر شدن کامل (100%) با سرعت ثابت و پیوسته، حداقل باید:
-// 100 / PROGRESS_PER_TICK_MAX تیک بگذره = (100/1.4)*100ms ≈ 7.1 ثانیه حرکت مداوم
 const PROGRESS_PER_TICK_MAX = 1.4;
 
-// آستانه‌های درصدی برای هر مرحله (از 0 تا 100)
 const STAGE_2_PERCENT = 30;
 const STAGE_3_PERCENT = 65;
 const STAGE_4_PERCENT = 100;
@@ -125,11 +147,10 @@ document.addEventListener("mousemove", (e) => {
         const dy = e.clientY - lastMouseY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         const dt = Math.max(now - lastMoveTime, 1);
-        let speed = dist / dt; // پیکسل بر میلی‌ثانیه
+        let speed = dist / dt;
 
-        speed = Math.min(speed, SPEED_CAP); // سقف زدن، تا یه تکون تند بی‌نهایت بزرگ نشه
+        speed = Math.min(speed, SPEED_CAP);
 
-        // صاف کردن (smoothing) به‌جای جمع خام، تا نوسان‌های لحظه‌ای اثر کمتری بذارن
         mouseSpeed = mouseSpeed * (1 - SPEED_SMOOTHING) + speed * SPEED_SMOOTHING;
     }
 
@@ -144,15 +165,13 @@ document.addEventListener("mousemove", (e) => {
 });
 
 function startIntroLoop() {
-    startLeafSpawn(100, 3.2, 3); // ریزش برگ همون اول شروع می‌شه
+    startLeafSpawn(100, 3.2, 3);
 
     introLoopId = setInterval(() => {
-        // اگه موس تکون نخوره، سرعت ثبت‌شده به‌سرعت افت می‌کنه و progress دیگه بالا نمی‌ره
         mouseSpeed *= SPEED_DECAY;
         if (mouseSpeed < 0.02) mouseSpeed = 0;
 
-        // نرمالایز بین 0 و 1، بعد ضرب در حداکثر مجاز هر تیک
-        const normalizedSpeed = mouseSpeed / SPEED_CAP; // بین 0 تا 1
+        const normalizedSpeed = mouseSpeed / SPEED_CAP;
         progress += normalizedSpeed * PROGRESS_PER_TICK_MAX;
         progress = Math.min(progress, 100);
 
@@ -187,7 +206,6 @@ function updateStage() {
     }
 }
 
-// تغییر متن با محو شدن نرم (fade out قدیمی، fade in جدید)
 function setTextFade(newText) {
     introText.style.opacity = 0;
     setTimeout(() => {
@@ -196,11 +214,19 @@ function setTextFade(newText) {
     }, 300);
 }
 
-// مرحله‌ی جدید: عکس YAVASH میاد، بعد چند تا متن پشت‌سرهم زیرش نشون داده می‌شه
-// و در نهایت خودکار می‌ره سراغ مرحله‌ی آخر (پر شدن کامل صفحه از برگ)
 function runYavashSequence() {
+    if (!introAudioEnded) {
+        if (stopAudio) {
+            stopAudio.currentTime = 0;
+            stopAudio.play().catch(() => {});
+        }
+        setTimeout(() => {
+            introAudio.pause();
+        }, 400);
+    }
+
     stopLolSpawn();
-    speedUpExisting(0.45); // هرچی روی صفحه‌ست سریع می‌ریزه پایین
+    speedUpExisting(0.45);
     document.getElementById("lolIcon").classList.add("hidden");
     introText.textContent = "";
 
@@ -211,28 +237,17 @@ function runYavashSequence() {
     setTimeout(() => setTextFade("چرا انقدر با خشونت؟"), 4000);
 
     setTimeout(() => {
-        introText.style.opacity = 0;
-        setTimeout(() => {
-            introText.textContent = "";
-            const startBtn = document.getElementById("startBtn");
-            if (startBtn) startBtn.classList.add("show");
-        }, 300);
+        setTextFade("باشه، رفتیم...");
     }, 6500);
 
-    const startBtn = document.getElementById("startBtn");
-    if (startBtn) {
-        startBtn.addEventListener("click", function onStartClick() {
-            startBtn.removeEventListener("click", onStartClick);
-            startBtn.classList.remove("show");
-            yavashImage.classList.add("hidden");
-            introText.textContent = "";
-            trackingEnabled = false;
-            runFinalStage();
-        });
-    }
+    setTimeout(() => {
+        yavashImage.classList.add("hidden");
+        introText.textContent = "";
+        trackingEnabled = false;
+        runFinalStage();
+    }, 9000);
 }
 
-// سرعت‌بخشی به عناصر در حال سقوطِ فعلی، به‌جای حذف ناگهانی‌شون
 function speedUpExisting(targetDurationSec) {
     leafContainer.querySelectorAll(".leaf-img").forEach((el) => {
         el.style.animationDuration = targetDurationSec + "s";
@@ -335,7 +350,7 @@ function runFinalStage() {
             el.style.top = (r * tileSize - size / 2 + tileSize / 2 + (Math.random() * 6 - 3)) + "px";
             el.style.setProperty("--rot", (Math.random() * 60 - 30) + "deg");
             el.style.transitionDelay = (cellIndex * STAGGER_MS_IN) + "ms";
-            el.style.willChange = "opacity, transform"; // اینجا، همون لحظه‌ی ساخت، نه بعداً یه‌جا
+            el.style.willChange = "opacity, transform";
 
             fragment.appendChild(el);
             spawnedLeaves.push(el);
@@ -346,7 +361,6 @@ function runFinalStage() {
         if (cellIndex < cells.length) {
             requestAnimationFrame(buildChunk);
         } else {
-            // دیگه نیازی به فوروچ جدا برای will-change نیست، چون بالا انجام شد
             requestAnimationFrame(() => {
                 spawnedLeaves.forEach((el) => el.classList.add("show"));
             });
@@ -374,7 +388,7 @@ function fadeOutLeaves(elements) {
         [order[i], order[j]] = [order[j], order[i]];
     }
 
-    const STAGGER_MS_OUT = 6; // از 2 به 6 → پخش‌شدگی بیشتر بین محو شدن‌ها
+    const STAGGER_MS_OUT = 6;
     order.forEach((el, i) => {
         el.style.transitionDelay = (i * STAGGER_MS_OUT) + "ms";
     });
@@ -402,7 +416,6 @@ function goToMain() {
     }, 500);
 }
 
-// حروف a-f-r-a2 و عکس space، هر کدوم دقیقاً روی تایم‌استمپ خودشون تو فایل صوتی، با تکیه بر currentTime واقعیِ صدا (نه setTimeout) شلیک می‌شن
 function startMainAudioSequence() {
     firedCues = new Set();
 
@@ -422,7 +435,6 @@ function onAudioTimeUpdate() {
     });
 }
 
-// حرف رو سریع (snap) دقیقاً همون لحظه می‌بره سرجای خودش
 function snapLetter(elId) {
     const el = document.getElementById(elId);
     if (!el) return;
@@ -432,9 +444,6 @@ function snapLetter(elId) {
     el.classList.add("play");
 }
 
-// ویدیوی space از بالا میاد و طوری فرود میاد که انگار کوبیده شده رو صفحه
-// (overshoot در سایز + لرزش صفحه + فلاش سفید لحظه‌ی برخورد)
-// بعدش ستاره‌ها دور صفحه شروع به چشمک زدن می‌کنن
 function playSpaceImpact() {
     const spaceVideo = document.getElementById("spaceVideo");
     const mainContent = document.querySelector(".main-content");
@@ -453,9 +462,8 @@ function playSpaceImpact() {
         if (soulText) {
             soulText.classList.add("reveal");
 
-            // بعد از تموم شدن کامل انیمیشن متن، برو سراغ books و movieroll
             soulText.addEventListener("animationend", function onSoulTextRevealed(e) {
-                if (e.animationName !== "fadeSlideIn") return; // فقط برای همین انیمیشن خاص
+                if (e.animationName !== "fadeSlideIn") return;
                 soulText.removeEventListener("animationend", onSoulTextRevealed);
                 playCornerItems();
             });
@@ -546,4 +554,58 @@ function spawnStar() {
 
     starContainer.appendChild(el);
     el.addEventListener("animationend", () => el.remove());
+}
+
+
+const CORNER_POP_ASSETS = ["assets/1.png", "assets/2.png", "assets/3.png", "assets/4.png"];
+
+function spawnMovieRollPop() {
+    const movieRollWrap = document.querySelector(".corner-wrap.corner-right");
+    if (!movieRollWrap) return;
+
+    const el = document.createElement("img");
+    el.className = "float-pop";
+    el.src = CORNER_POP_ASSETS[Math.floor(Math.random() * CORNER_POP_ASSETS.length)];
+    movieRollWrap.appendChild(el);
+
+    el.addEventListener("animationend", () => el.remove());
+}
+
+const movieRollWrap = document.querySelector(".corner-wrap.corner-right");
+if (movieRollWrap) {
+    movieRollWrap.addEventListener("click", spawnMovieRollPop);
+}
+
+const booksButton=document.querySelector(".corner-wrap.corner-left");
+const iris=document.getElementById("iris-transition");
+
+if(booksButton){
+
+booksButton.addEventListener("click",()=>{
+    if(mainAudio){
+        fadeOutAudio(mainAudio,1200);
+}
+
+    const rect=booksButton.getBoundingClientRect();
+
+    const x=rect.left+rect.width/2;
+    const y=rect.top+rect.height/2;
+
+
+    iris.style.setProperty("--x",x+"px");
+    iris.style.setProperty("--y",y+"px");
+
+
+    iris.classList.add("close");
+
+
+    setTimeout(()=>{
+
+        window.location.href="books.html";
+
+    },1200);
+
+
+});
+
 }
