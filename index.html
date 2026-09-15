@@ -9,20 +9,28 @@
     <link href="https://fonts.googleapis.com/css2?family=Lalezar&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-</head>
+</head
+
+>
+
+<div id="iris-transition"></div>
 
 <body>
     
 
-    <video id="paper-video" autoplay muted playsinline>
+    <video id="paper-video" muted playsinline preload="auto">
         <source src="videos/paper-opening.webm" type="video/webm">
     </video>
 
     <audio id="mainAudio" src="audio/sample.mp3" preload="auto"></audio>
+    <audio id="introAudio" src="audio/intro.mp3" preload="auto"></audio>
+    <audio id="STOPAudio" src="audio/STOP.wav" preload="auto"></audio>
 
     <div id="impact-flash"></div>
 
     <section id="intro-screen">
+
+        <div id="paperClickArea"></div>
 
         <div id="leaf-container"></div>
 
@@ -35,7 +43,6 @@
     <img id="yavashImage" src="assets/YAVASH.png" alt="Yavash" class="hidden">
     <div class="text-slot">
         <p id="introText">موست رو تکون بده</p>
-        <button id="startBtn" class="start-btn">بریم</button>
     </div>
 </div>
 
