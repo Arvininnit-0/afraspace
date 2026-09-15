@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afra Library</title>
+    <link rel="stylesheet" href="books.css">
+</head>
+
+
+
+<body>
+
+<audio id="loopAudio" src="audio/teardrop.mp3" loop preload="auto"></audio>
+<div id="iris-transition"></div>
+<video 
+id="main-title"
+src="animations/loverrr.webm"
+muted
+playsinline
+preload="auto">
+</video>
+
+
+<section id="page2-main">
+
+    <div id="book-grid" class="book-grid">
+
+        <div class="book-item">
+            <div class="book-inner">
+                <video 
+                src="booklist/summer.webm"
+                muted
+                playsinline
+                preload="auto">
+                </video>
+            </div>
+        </div>
+
+
+        <div class="book-item">
+            <div class="book-inner">
+                <video 
+                src="booklist/white_nights.webm"
+                muted
+                playsinline
+                preload="auto">
+                </video>
+            </div>
+        </div>
+
+
+        <div class="book-item">
+            <div class="book-inner">
+                <video 
+                src="booklist/dorian_gray.webm"
+                muted
+                playsinline
+                preload="auto">
+                </video>
+            </div>
+        </div>
+
+
+        <div class="book-item">
+            <div class="book-inner">
+                <video 
+                src="booklist/pedro_paramo.webm"
+                muted
+                playsinline
+                preload="auto">
+                </video>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- اینجا بعداً محتوای صفحه کتاب قرار می‌گیرد -->
+    <div id="book-page-content"></div>
+
+</section>
+
+
+
+<!-- transition هنگام ورود به صفحه کتاب -->
+<video 
+id="to-book-transition"
+src="transitions/to_book.webm"
+muted
+playsinline
+preload="auto">
+</video>
+
+
+<!-- transition هنگام برگشت به کتابخانه -->
+<video 
+id="main-transition"
+muted
+playsinline
+preload="auto">
+</video>
+
+
+<script src="books.js"></script>
+
+</body>
+</html>

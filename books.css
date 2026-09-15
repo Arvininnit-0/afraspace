@@ -1,0 +1,328 @@
+@font-face {
+    font-family:'Telma';
+    src:url('fonts/Telma-Regular.woff2') format('woff2');
+    font-weight:400;
+    font-display:swap;
+}
+
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+}
+
+body{
+    position:relative;
+}
+
+
+#page2-main{
+    position:fixed;
+    inset:0;
+    width:100vw;
+    height:100vh;
+    background:url("images/boneback.png") center/cover no-repeat;
+    z-index:1;
+}
+
+
+#main-title{
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:600px;
+    opacity:0;
+    z-index:20;
+    pointer-events:none;
+    transition:opacity .8s ease;
+}
+
+
+
+.book-grid{
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+
+    display:grid;
+    grid-template-columns:repeat(2,170px);
+    grid-template-rows:repeat(2,270px);
+
+    gap: 80px 110px;
+
+    z-index:30;
+}
+
+
+
+.book-item{
+    position:relative;
+
+    width:170px;
+    height:270px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    opacity:0;
+
+    cursor:pointer;
+    pointer-events:none;
+
+    transition:
+    opacity .6s ease,
+    transform .8s ease;
+
+}
+
+
+.book-item.visible{
+    opacity:1;
+    pointer-events:auto;
+}
+
+
+
+.book-inner{
+
+    width:100%;
+    height:100%;
+
+    overflow:hidden;
+
+    transform:
+    rotate(var(--rot,0deg))
+    translate(var(--tx,0),var(--ty,0))
+    scale(.85);
+
+
+    transition:
+    transform .6s cubic-bezier(.22,1,.36,1);
+
+}
+
+
+
+.book-item.visible .book-inner{
+
+    transform:
+    rotate(var(--rot,0deg))
+    translate(var(--tx,0),var(--ty,0))
+    scale(1.15);
+
+}
+
+
+
+.book-item:hover{
+    z-index:50;
+}
+
+
+.book-item:not(.selected):hover .book-inner{
+
+    transform:
+    rotate(var(--rot,0deg))
+    translate(var(--tx,0),var(--ty,0))
+    scale(1.3);
+
+}
+
+
+
+.book-item video{
+
+    width:100%;
+    height:100%;
+
+    object-fit:cover;
+
+    display:block;
+
+    pointer-events:none;
+
+}
+
+
+
+.book-item:nth-child(1){
+
+    --rot:-6deg;
+    --tx:4px;
+    --ty:-6px;
+
+}
+
+
+.book-item:nth-child(2){
+
+    --rot:4deg;
+    --tx:-2px;
+    --ty:8px;
+
+}
+
+
+.book-item:nth-child(3){
+
+    --rot:-3deg;
+    --tx:6px;
+    --ty:3px;
+
+}
+
+
+.book-item:nth-child(4){
+
+    --rot:5deg;
+    --tx:-6px;
+    --ty:-4px;
+
+}
+
+
+
+.book-item.selected{
+
+    position:fixed;
+
+    z-index:100;
+
+    pointer-events:none;
+
+
+    transition:
+
+    top .8s cubic-bezier(.65,0,.35,1),
+
+    left .8s cubic-bezier(.65,0,.35,1),
+
+    transform .8s cubic-bezier(.65,0,.35,1);
+
+}
+
+
+
+.book-item.book-page{
+
+    pointer-events:auto;
+
+    cursor:pointer;
+
+    z-index:100;
+
+}
+
+
+
+.book-item.book-page:hover .book-inner{
+
+    transform:
+    rotate(var(--rot,0deg))
+    translate(var(--tx,0),var(--ty,0))
+    scale(1.25);
+
+}
+
+
+
+#book-page-content{
+
+    position:fixed;
+
+    top:50%;
+    left:70%;
+
+    transform:translate(-50%,-50%);
+
+    z-index:40;
+
+}
+
+
+
+#to-book-transition,
+#main-transition{
+
+    position:fixed;
+
+    inset:0;
+
+    width:100vw;
+    height:100vh;
+
+    object-fit:cover;
+
+    opacity:0;
+
+    pointer-events:none;
+
+}
+
+
+
+#to-book-transition{
+
+    z-index:90;
+
+}
+
+
+
+#main-transition{
+
+    z-index:200;
+
+}
+
+.book-page-left{
+    transition:
+    left .8s ease,
+    transform .8s ease;
+    
+    transform:
+    translate(-50%,-50%)
+    rotate(-10deg)
+    scale(1.35);
+}
+
+.book-page-left:hover .book-inner{
+    transform:
+    rotate(-10deg)
+    scale(1.25);
+}
+
+
+.book-item.exiting{
+    transform:translateX(var(--exitX, 300px));
+    opacity:0;
+    pointer-events:none;
+}
+
+#iris-transition{
+    position:fixed;
+    inset:0;
+    background:#000;
+    z-index:999999;
+    pointer-events:none;
+    clip-path:circle(150% at 50% 50%);
+}
+
+#iris-transition.open{
+    animation:irisOpen 3s ease forwards;
+}
+
+@keyframes irisOpen{
+    0%{ clip-path:circle(150% at 50% 50%); }  
+    100%{ clip-path:circle(0% at 50% 50%); }   
+}
+
+#to-book-transition,
+#main-transition{
+    /* ...بقیه استایل‌های موجود... */
+    transition:opacity .3s ease;
+}
